@@ -25,11 +25,11 @@ export default function ProblemSection() {
             <div className="rounded-2xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
               <p className="mb-4 text-sm font-semibold text-red-500">Without Inertia</p>
               <div className="flex flex-col gap-1.5" aria-label="Choppy scroll visualization showing stuttery steps">
-                {Array.from({ length: 8 }).map((_, i) => (
+                {[45, 42, 48, 41, 46, 43, 47, 44].map((w, i) => (
                   <div
                     key={i}
                     className="h-2.5 rounded-full bg-red-100 dark:bg-red-900/30"
-                    style={{ width: `${40 + Math.random() * 10}%` }}
+                    style={{ width: `${w}%` }}
                   />
                 ))}
               </div>

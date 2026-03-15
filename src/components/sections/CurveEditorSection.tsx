@@ -26,10 +26,10 @@ export default function CurveEditorSection() {
           </ScrollReveal>
 
           <ScrollReveal delay={0.2}>
-            <div className="overflow-hidden rounded-xl border border-gray-200 shadow-lg dark:border-gray-700">
+            <div className="overflow-hidden rounded-xl shadow-lg">
               <Image
-                src="/images/screenshots/advanced.png"
-                alt="Inertia's easing curve editor showing a visual curve with draggable control points and preset buttons for Smooth, Snappy, Linear, Gradual, and Custom modes"
+                src="/images/screenshots/general.png"
+                alt="Inertia's General settings tab showing speed, smoothness, and easing controls with a visual curve editor featuring draggable control points"
                 width={520}
                 height={400}
                 className="w-full"

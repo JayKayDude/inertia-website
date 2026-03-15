@@ -42,41 +42,26 @@ export default function ScreenshotsSection() {
             ))}
           </div>
 
-          {/* Screenshot with macOS chrome */}
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-900">
-            {/* Title bar */}
-            <div className="flex items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
-              <div className="flex gap-1.5">
-                <div className="h-3 w-3 rounded-full bg-red-500" aria-hidden="true" />
-                <div className="h-3 w-3 rounded-full bg-yellow-500" aria-hidden="true" />
-                <div className="h-3 w-3 rounded-full bg-green-500" aria-hidden="true" />
-              </div>
-              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                Inertia Settings — {SCREENSHOT_TABS[activeTab].label}
-              </span>
-            </div>
-
-            {/* Screenshot */}
-            <div className="relative">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={activeTab}
-                  initial={prefersReducedMotion ? {} : { opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={prefersReducedMotion ? {} : { opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Image
-                    src={`/images/screenshots/${SCREENSHOT_TABS[activeTab].file}`}
-                    alt={`Inertia ${SCREENSHOT_TABS[activeTab].label} settings tab showing scroll configuration options`}
-                    width={520}
-                    height={400}
-                    className="w-full"
-                    priority={activeTab === 0}
-                  />
-                </motion.div>
-              </AnimatePresence>
-            </div>
+          {/* Screenshot — images already include macOS window chrome */}
+          <div className="overflow-hidden rounded-xl shadow-2xl">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={prefersReducedMotion ? {} : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={prefersReducedMotion ? {} : { opacity: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Image
+                  src={`/images/screenshots/${SCREENSHOT_TABS[activeTab].file}`}
+                  alt={`Inertia ${SCREENSHOT_TABS[activeTab].label} settings tab showing scroll configuration options`}
+                  width={520}
+                  height={400}
+                  className="w-full"
+                  priority={activeTab === 0}
+                />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </ScrollReveal>
       </div>

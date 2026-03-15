@@ -8,6 +8,14 @@ const PIXELS_PER_TICK = 45.0;
 const VELOCITY_THRESHOLD = 30.0;
 const REFERENCE_SMOOTHNESS = 0.9;
 
+// Tick rate history size from ScrollEngine.swift line 63
+const TICK_RATE_HISTORY_SIZE = 3;
+
+// Swipe detection from ScrollEngine.swift lines 71-73
+const SWIPE_MIN_TICKS = 2;
+const SWIPE_MAX_INTERVAL = 0.4;
+const SWIPE_MIN_TICK_SPEED = 5.0;
+
 export type EasingPreset = "smooth" | "snappy" | "linear" | "gradual";
 
 export interface ScrollPhysicsConfig {
@@ -15,6 +23,8 @@ export interface ScrollPhysicsConfig {
   smoothness: number;      // default 0.6
   momentumDuration: number; // default 0.6
   easing: EasingPreset;    // default "smooth"
+  scrollAccelerationEnabled: boolean; // default true
+  scrollDistanceMultiplier: number;   // default 1.0
 }
 
 export const DEFAULT_CONFIG: ScrollPhysicsConfig = {
@@ -22,6 +32,8 @@ export const DEFAULT_CONFIG: ScrollPhysicsConfig = {
   smoothness: 0.6,
   momentumDuration: 0.6,
   easing: "smooth",
+  scrollAccelerationEnabled: true,
+  scrollDistanceMultiplier: 1.0,
 };
 
 export class ScrollPhysicsEngine {
@@ -31,6 +43,17 @@ export class ScrollPhysicsEngine {
   private lastTickTime = 0;
   private rafId: number | null = null;
   private lastFrameTime = 0;
+
+  // Tick rate tracking (ScrollEngine.swift lines 62-63, 197-207)
+  private tickRate = 5.0;
+  private tickRateHistory: number[] = [];
+
+  // Swipe/acceleration tracking (ScrollEngine.swift lines 65-69)
+  private consecutiveTickCount = 0;
+  private consecutiveSwipeCount = 0;
+  private swipeSequenceStartTime = 0;
+  private swipeSequenceTickCount = 0;
+  private lastDirection = 0;
 
   // Momentum tracking
   private momentumPhaseStarted = false;
@@ -68,6 +91,39 @@ export class ScrollPhysicsEngine {
     return Math.log(VELOCITY_THRESHOLD / Math.abs(initialV)) / Math.log(friction);
   }
 
+  // Speed curve from ScrollEngine.swift lines 352-369
+  // y = a * pow(1.1, (x-t)*c) + 1 - a
+  private computeSpeed(tickRate: number): number {
+    const base = this.config.baseSpeed;
+    if (!this.config.scrollAccelerationEnabled) return base * 2.0;
+
+    const b = 1.1;
+    const c = 1.5;
+    const t = 8.0;
+    const p = 1.33;
+    const denominator = Math.pow(b, c) - 1.0;
+    if (Math.abs(denominator) < 0.001) return base;
+    const a = (p - 1.0) / denominator;
+
+    const x = Math.min(tickRate, 100.0);
+    if (x < t) return base;
+
+    const multiplier = a * Math.pow(b, (x - t) * c) + 1.0 - a;
+    const clamped = Math.min(Math.max(multiplier, 1.0), 3.0);
+    return base * clamped;
+  }
+
+  // Fast scroll factor from ScrollEngine.swift lines 320-328
+  private fastScrollFactor(): number {
+    const threshold = 3;
+    const exponential = 7.5;
+    const initial = 1.33;
+    if (this.consecutiveSwipeCount < threshold) return 1.0;
+    const n = this.consecutiveSwipeCount - threshold;
+    const factor = initial * Math.pow(exponential, n / exponential);
+    return Math.min(factor, 50.0);
+  }
+
   /**
    * Process a wheel event. Call this from the wheel event listener.
    * @param deltaY - The wheel event's deltaY (raw browser value)
@@ -80,6 +136,45 @@ export class ScrollPhysicsEngine {
     const direction = deltaY > 0 ? 1.0 : -1.0;
 
     const now = performance.now() / 1000; // Convert to seconds
+    const dt = now - this.lastTickTime;
+
+    // Tick rate tracking (ScrollEngine.swift lines 197-207)
+    if (dt > 0 && dt < 0.16) {
+      const instantRate = 1.0 / dt;
+      this.tickRateHistory.push(instantRate);
+      if (this.tickRateHistory.length > TICK_RATE_HISTORY_SIZE) {
+        this.tickRateHistory.shift();
+      }
+      this.tickRate = this.tickRateHistory.reduce((a, b) => a + b, 0) / this.tickRateHistory.length;
+    } else {
+      this.tickRateHistory = [];
+      this.tickRate = 5.0;
+    }
+
+    // Swipe detection (ScrollEngine.swift lines 245-265)
+    if (dt > 0.16 || direction !== this.lastDirection) {
+      if (direction !== this.lastDirection || dt > SWIPE_MAX_INTERVAL) {
+        this.consecutiveSwipeCount = 0;
+      } else if (this.consecutiveTickCount >= SWIPE_MIN_TICKS) {
+        const elapsed = now - this.swipeSequenceStartTime;
+        const avgTickSpeed = elapsed > 0 ? this.swipeSequenceTickCount / elapsed : 0;
+        if (avgTickSpeed >= SWIPE_MIN_TICK_SPEED) {
+          this.consecutiveSwipeCount++;
+        } else {
+          this.consecutiveSwipeCount = 0;
+        }
+      } else {
+        this.consecutiveSwipeCount = 0;
+      }
+      this.consecutiveTickCount = 0;
+      this.swipeSequenceStartTime = now;
+      this.swipeSequenceTickCount = 0;
+    }
+    this.consecutiveTickCount++;
+    this.swipeSequenceTickCount++;
+    this.lastDirection = direction;
+
+    this.lastTickTime = now;
 
     // Zero velocity on direction change (ScrollEngine.swift lines 300-301)
     if (direction > 0 && this.velocity < 0) {
@@ -97,8 +192,11 @@ export class ScrollPhysicsEngine {
       this.momentumFrameCount = 0;
     }
 
-    // Compute impulse (line 270)
-    const impulse = direction * this.config.baseSpeed * PIXELS_PER_TICK;
+    // Compute speed with acceleration curve (lines 267-271)
+    const speed = this.computeSpeed(this.tickRate);
+    const fast = this.config.scrollAccelerationEnabled ? this.fastScrollFactor() : 1.0;
+    let impulse = direction * speed * PIXELS_PER_TICK * fast;
+    impulse *= this.config.scrollDistanceMultiplier; // line 271
 
     // Smoothness compensation (lines 285-287)
     const effectiveSmoothness = Math.min(this.config.smoothness, REFERENCE_SMOOTHNESS);
@@ -109,10 +207,8 @@ export class ScrollPhysicsEngine {
     this.velocity = this.velocity * effectiveSmoothness + impulse * compensation;
 
     // Cap velocity (lines 310-311)
-    const maxVelocity = this.config.baseSpeed * 3.0 * PIXELS_PER_TICK * 4.0;
+    const maxVelocity = this.config.baseSpeed * 3.0 * PIXELS_PER_TICK * 4.0 * fast;
     this.velocity = Math.min(Math.max(this.velocity, -maxVelocity), maxVelocity);
-
-    this.lastTickTime = now;
 
     this.startAnimation();
   }
@@ -206,6 +302,8 @@ export class ScrollPhysicsEngine {
     this.velocity = 0;
     this.momentumPhaseStarted = false;
     this.momentumFrameCount = 0;
+    this.consecutiveSwipeCount = 0;
+    this.consecutiveTickCount = 0;
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;

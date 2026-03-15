@@ -5,11 +5,18 @@ import { ScrollPhysicsEngine } from "@/lib/scrollPhysics";
 
 export default function ScrollDemo() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [inertiaEnabled, setInertiaEnabled] = useState(true);
-  const [velocity, setVelocity] = useState(0);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [inertiaEnabled, setInertiaEnabled] = useState(false);
   const [isTrackpad, setIsTrackpad] = useState(false);
+  const [hasScrolled, setHasScrolled] = useState(false);
   const engineRef = useRef<ScrollPhysicsEngine | null>(null);
+  const scrollOffsetRef = useRef(0);
+
+  // Trackpad detection: track recent wheel events and look for
+  // the high-frequency, small-delta pattern unique to trackpads.
+  // Mice produce discrete ticks (low frequency, larger deltas).
+  // Trackpads produce continuous streams (high frequency, often fractional).
+  const recentEventsRef = useRef<{ time: number; deltaY: number }[]>([]);
 
   useEffect(() => {
     const engine = new ScrollPhysicsEngine({
@@ -20,18 +27,13 @@ export default function ScrollDemo() {
     });
 
     engine.onScroll = (delta) => {
-      const content = contentRef.current;
+      const inner = innerRef.current;
       const container = containerRef.current;
-      if (!content || !container) return;
+      if (!inner || !container) return;
 
-      const maxScroll = content.scrollHeight - container.clientHeight;
-      const currentScroll = content.scrollTop;
-      const newScroll = Math.max(0, Math.min(currentScroll + delta, maxScroll));
-      content.scrollTop = newScroll;
-    };
-
-    engine.onVelocityChange = (v) => {
-      setVelocity(v);
+      const maxScroll = inner.scrollHeight - container.clientHeight;
+      scrollOffsetRef.current = Math.max(0, Math.min(scrollOffsetRef.current + delta, maxScroll));
+      inner.style.transform = `translateY(${-scrollOffsetRef.current}px)`;
     };
 
     engineRef.current = engine;
@@ -39,11 +41,63 @@ export default function ScrollDemo() {
     return () => engine.destroy();
   }, []);
 
-  // Trackpad detection: fractional deltaY values suggest trackpad
   const detectTrackpad = useCallback((e: WheelEvent) => {
-    if (e.deltaY % 1 !== 0 && Math.abs(e.deltaY) < 50) {
-      setIsTrackpad(true);
+    const now = performance.now();
+    const events = recentEventsRef.current;
+
+    events.push({ time: now, deltaY: e.deltaY });
+
+    // Keep only events from the last 200ms
+    while (events.length > 0 && now - events[0].time > 200) {
+      events.shift();
     }
+
+    // Observed on macOS (from debug data):
+    //   Mouse:    fractional deltaY, large magnitude (100-300), ~11 Hz
+    //   Trackpad: integer deltaY, small magnitude (1-2), ~80 Hz
+    //
+    // Detect trackpad: 10+ events in 200ms (50+ Hz) where most
+    // have small integer deltas (|deltaY| <= 4).
+    // Re-evaluates on every event so switching devices updates the notice.
+    if (events.length >= 10) {
+      const smallIntCount = events.filter(
+        ev => Math.abs(ev.deltaY) <= 4 && ev.deltaY % 1 === 0
+      ).length;
+      setIsTrackpad(smallIntCount >= events.length * 0.7);
+    } else if (events.length >= 3 && isTrackpad) {
+      // If we have a few events and they look like mouse, clear quickly
+      const smallIntCount = events.filter(
+        ev => Math.abs(ev.deltaY) <= 4 && ev.deltaY % 1 === 0
+      ).length;
+      if (smallIntCount < events.length * 0.3) {
+        setIsTrackpad(false);
+      }
+    }
+  }, [isTrackpad]);
+
+  // Sync scrollOffsetRef when switching modes
+  const switchToInertia = useCallback(() => {
+    setInertiaEnabled(true);
+    const container = containerRef.current;
+    if (container) {
+      scrollOffsetRef.current = container.scrollTop;
+      const inner = innerRef.current;
+      if (inner) {
+        inner.style.transform = `translateY(${-scrollOffsetRef.current}px)`;
+      }
+      container.scrollTop = 0;
+    }
+  }, []);
+
+  const switchToDefault = useCallback(() => {
+    engineRef.current?.stop();
+    const container = containerRef.current;
+    const inner = innerRef.current;
+    if (container && inner) {
+      inner.style.transform = "";
+      container.scrollTop = scrollOffsetRef.current;
+    }
+    setInertiaEnabled(false);
   }, []);
 
   useEffect(() => {
@@ -51,9 +105,10 @@ export default function ScrollDemo() {
     if (!container) return;
 
     const handleWheel = (e: WheelEvent) => {
+      if (!hasScrolled) setHasScrolled(true);
       detectTrackpad(e);
 
-      if (!inertiaEnabled) return; // Let native scroll handle it
+      if (!inertiaEnabled) return;
 
       e.preventDefault();
       e.stopPropagation();
@@ -63,7 +118,7 @@ export default function ScrollDemo() {
 
     container.addEventListener("wheel", handleWheel, { passive: false });
     return () => container.removeEventListener("wheel", handleWheel);
-  }, [inertiaEnabled, detectTrackpad]);
+  }, [inertiaEnabled, detectTrackpad, hasScrolled]);
 
   const sampleContent = [
     { title: "Getting Started", text: "Inertia transforms your mouse scrolling experience on macOS. Instead of the choppy, line-by-line jumps you're used to, every scroll feels fluid and natural." },
@@ -79,7 +134,7 @@ export default function ScrollDemo() {
       {/* Toggle */}
       <div className="mb-4 flex items-center justify-center gap-3">
         <button
-          onClick={() => { setInertiaEnabled(false); engineRef.current?.stop(); }}
+          onClick={switchToDefault}
           className={`rounded-full px-5 py-2 text-sm font-medium transition-colors min-h-[44px] ${
             !inertiaEnabled
               ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
@@ -89,7 +144,7 @@ export default function ScrollDemo() {
           Default Scroll
         </button>
         <button
-          onClick={() => setInertiaEnabled(true)}
+          onClick={switchToInertia}
           className={`rounded-full px-5 py-2 text-sm font-medium transition-colors min-h-[44px] ${
             inertiaEnabled
               ? "gradient-bg text-white"
@@ -118,12 +173,9 @@ export default function ScrollDemo() {
         <div
           ref={containerRef}
           className="relative h-[400px]"
+          style={{ overflow: inertiaEnabled ? "hidden" : "auto" }}
         >
-          <div
-            ref={contentRef}
-            className={`h-full overflow-y-auto p-6 ${inertiaEnabled ? "overflow-hidden" : ""}`}
-            style={inertiaEnabled ? { overflow: "hidden" } : {}}
-          >
+          <div ref={innerRef} className="p-6" style={{ willChange: inertiaEnabled ? "transform" : "auto" }}>
             <div className="space-y-6">
               {sampleContent.map((item, i) => (
                 <article key={i} className="rounded-lg border border-gray-100 bg-gray-50/50 p-5 dark:border-gray-800 dark:bg-gray-800/50">
@@ -138,23 +190,18 @@ export default function ScrollDemo() {
         </div>
       </div>
 
-      {/* Velocity indicator */}
-      {inertiaEnabled && (
-        <div className="mt-3 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-          <div
-            className="h-1.5 rounded-full gradient-bg transition-all duration-75"
-            style={{ width: `${Math.min(Math.abs(velocity) / 10, 100)}%`, minWidth: 4 }}
-            role="presentation"
-          />
-          <span>{Math.abs(velocity) > 30 ? "Scrolling..." : "Try scrolling here"}</span>
-        </div>
+      {/* Hint — disappears after first scroll */}
+      {!hasScrolled && (
+        <p className="mt-3 text-center text-sm text-gray-400 dark:text-gray-500">
+          Try scrolling here with your mouse wheel
+        </p>
       )}
 
       {/* Trackpad notice */}
       {isTrackpad && (
-        <p className="mt-2 text-center text-xs text-gray-400 dark:text-gray-500">
-          Looks like you&apos;re using a trackpad — Inertia is designed for mouse wheels.
-          The demo works best with a mouse.
+        <p className="mt-3 text-center text-xs text-gray-400 dark:text-gray-500">
+          Looks like you&apos;re using a trackpad. This web demo applies smooth scrolling to all input,
+          but the actual app only affects mouse wheels — your trackpad scrolling stays untouched.
         </p>
       )}
     </div>
