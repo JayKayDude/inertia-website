@@ -99,6 +99,17 @@ export default function PageScrollEngine({ children, overlay }: PageScrollEngine
     };
   }, [applyTransform, clampOffset]);
 
+  // Reset scroll position on mount (page reload)
+  useEffect(() => {
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+    window.scrollTo(0, 0);
+    scrollOffsetRef.current = 0;
+    targetOffsetRef.current = 0;
+    applyTransform();
+  }, [applyTransform]);
+
   // Lock body overflow on mount (whole page is transform-based)
   useEffect(() => {
     if (isMobile || reducedMotion) return;
