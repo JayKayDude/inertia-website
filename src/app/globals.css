@@ -143,3 +143,10 @@ html {
   outline: 2px solid var(--gradient-blue);
   outline-offset: 2px;
 }
+
+/* Reveal burst rings — hollow circles via CSS mask */
+.reveal-ring {
+  border-radius: 50%;
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+}

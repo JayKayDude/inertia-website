@@ -36,6 +36,7 @@ export default function PageScrollEngine({ children }: PageScrollEngineProps) {
   const revealElRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<ScrollPhysicsEngine | null>(null);
   const scrollOffsetRef = useRef(0);
+  const subscribersRef = useRef<Set<(offset: number) => void>>(new Set());
   const physicsActiveRef = useRef(false);
   const [isInertiaActive, setIsInertiaActive] = useState(false);
   const [isMobile, setIsMobile] = useState(() => {
@@ -64,6 +65,9 @@ export default function PageScrollEngine({ children }: PageScrollEngineProps) {
     if (content) {
       content.style.transform = `translateY(${-scrollOffsetRef.current}px)`;
     }
+    // Notify scroll subscribers
+    const offset = scrollOffsetRef.current;
+    subscribersRef.current.forEach((cb) => cb(offset));
   }, []);
 
   // Clamp offset to valid range
@@ -145,7 +149,7 @@ export default function PageScrollEngine({ children }: PageScrollEngineProps) {
   const getRevealThreshold = useCallback(() => {
     const reveal = revealElRef.current;
     if (!reveal) return Infinity;
-    return reveal.offsetTop - window.innerHeight * 0.6;
+    return reveal.offsetTop + (reveal.offsetHeight - window.innerHeight) * 0.9;
   }, []);
 
   // Check if we've scrolled past the reveal point (activate)
@@ -295,20 +299,27 @@ export default function PageScrollEngine({ children }: PageScrollEngineProps) {
   // Stable accessor function for engine (avoids ref-in-render)
   const getEngine = useCallback(() => engineRef.current, []);
 
+  // Subscribe to scroll offset updates (imperative, no re-renders)
+  const subscribeToScroll = useCallback((cb: (offset: number) => void) => {
+    subscribersRef.current.add(cb);
+    return () => { subscribersRef.current.delete(cb); };
+  }, []);
+
   // Stable context value
   const contextValue = useMemo(
     () => ({
       getEngine,
       isInertiaActive,
+      subscribeToScroll,
     }),
-    [getEngine, isInertiaActive]
+    [getEngine, isInertiaActive, subscribeToScroll]
   );
 
   // Mobile / reduced motion: no scroll engine, native scroll
   if (isMobile || reducedMotion) {
     return (
       <ScrollEngineContext.Provider
-        value={{ getEngine: () => null, isInertiaActive: false }}
+        value={{ getEngine: () => null, isInertiaActive: false, subscribeToScroll: () => () => {} }}
       >
         <RevealRefContext.Provider value={null}>
           {children}
