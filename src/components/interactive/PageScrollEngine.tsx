@@ -24,6 +24,8 @@ export function useRevealRef() {
 
 interface PageScrollEngineProps {
   children: ReactNode;
+  /** Elements rendered outside the translated content div (e.g. fixed headers) */
+  overlay?: ReactNode;
 }
 
 /**
@@ -31,7 +33,7 @@ interface PageScrollEngineProps {
  * Before the reveal point: wheel events scroll directly (no momentum).
  * After the reveal point: wheel events go through the physics engine (smooth momentum).
  */
-export default function PageScrollEngine({ children }: PageScrollEngineProps) {
+export default function PageScrollEngine({ children, overlay }: PageScrollEngineProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const revealElRef = useRef<HTMLDivElement | null>(null);
   const engineRef = useRef<ScrollPhysicsEngine | null>(null);
@@ -305,22 +307,36 @@ export default function PageScrollEngine({ children }: PageScrollEngineProps) {
     return () => { subscribersRef.current.delete(cb); };
   }, []);
 
+  // Programmatic scroll-to for nav links
+  const scrollToOffset = useCallback((offset: number) => {
+    // Stop physics engine if running
+    engineRef.current?.stop();
+    if (physicsActiveRef.current) {
+      physicsActiveRef.current = false;
+      setIsInertiaActive(false);
+    }
+    targetOffsetRef.current = clampOffset(offset);
+    startLerp();
+  }, [clampOffset, startLerp]);
+
   // Stable context value
   const contextValue = useMemo(
     () => ({
       getEngine,
       isInertiaActive,
       subscribeToScroll,
+      scrollToOffset,
     }),
-    [getEngine, isInertiaActive, subscribeToScroll]
+    [getEngine, isInertiaActive, subscribeToScroll, scrollToOffset]
   );
 
   // Mobile / reduced motion: no scroll engine, native scroll
   if (isMobile || reducedMotion) {
     return (
       <ScrollEngineContext.Provider
-        value={{ getEngine: () => null, isInertiaActive: false, subscribeToScroll: () => () => {} }}
+        value={{ getEngine: () => null, isInertiaActive: false, subscribeToScroll: () => () => {}, scrollToOffset: () => {} }}
       >
+        {overlay}
         <RevealRefContext.Provider value={null}>
           {children}
         </RevealRefContext.Provider>
@@ -330,6 +346,7 @@ export default function PageScrollEngine({ children }: PageScrollEngineProps) {
 
   return (
     <ScrollEngineContext.Provider value={contextValue}>
+      {overlay}
       <RevealRefContext.Provider value={registerReveal}>
         <div
           ref={contentRef}

@@ -10,8 +10,7 @@ import PageScrollEngine from "@/components/interactive/PageScrollEngine";
 
 export default function Home() {
   return (
-    <PageScrollEngine>
-      <Header />
+    <PageScrollEngine overlay={<Header />}>
       <main>
         <HeroSection />
         <ProblemSection />

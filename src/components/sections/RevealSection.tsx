@@ -266,10 +266,12 @@ export default function RevealSection() {
               opacity: 0,
               transform: "translate(-50%, -50%) scale(0)",
               willChange: "transform, opacity",
-              // Alternate purple/orange gradient borders
-              background: i % 2 === 0
-                ? "conic-gradient(#8b5cf6, #f97316, #8b5cf6)"
-                : "conic-gradient(#f97316, #06b6d4, #f97316)",
+              // Alternate purple/orange/cyan border colors
+              borderColor: i % 3 === 0
+                ? "rgba(139, 92, 246, 0.8)"
+                : i % 3 === 1
+                  ? "rgba(249, 115, 22, 0.7)"
+                  : "rgba(6, 182, 212, 0.7)",
             }}
             aria-hidden="true"
           />

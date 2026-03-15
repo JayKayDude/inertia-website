@@ -144,9 +144,48 @@ html {
   outline-offset: 2px;
 }
 
-/* Reveal burst rings — hollow circles via CSS mask */
+/* Scroll demo: shared container */
+.scroll-demo-container {
+  height: 120px;
+  overflow: hidden;
+  border-radius: 8px;
+  position: relative;
+  mask-image: linear-gradient(to bottom, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+}
+
+/* Choppy scroll: discrete steps with pauses */
+.scroll-demo-choppy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: scroll-choppy 4s steps(16, end) infinite;
+}
+
+/* Smooth scroll: fluid deceleration */
+.scroll-demo-smooth {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: scroll-smooth 4s ease-in-out infinite;
+}
+
+@keyframes scroll-choppy {
+  0%, 10% { transform: translateY(0); }
+  45%, 55% { transform: translateY(-120px); }
+  90%, 100% { transform: translateY(0); }
+}
+
+@keyframes scroll-smooth {
+  0%, 10% { transform: translateY(0); }
+  45%, 55% { transform: translateY(-120px); }
+  90%, 100% { transform: translateY(0); }
+}
+
+/* Reveal burst rings — hollow circles via border */
 .reveal-ring {
   border-radius: 50%;
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px));
+  background: transparent !important;
+  border: 4px solid;
+  filter: blur(1.5px);
 }
