@@ -26,9 +26,19 @@ Marketing landing page for Inertia, a macOS menubar app for smooth mouse wheel s
 - Physics-driven scrolling uses translateY transforms (not scrollTop) with will-change: transform
 - No screenshots — interactive demos replace static images
 
+## Page Architecture (v2)
+The entire page is the demo. Visitors scroll natively at the top (choppy), then Inertia physics kick in at a reveal point. The controls section lets users tweak scroll behavior in real-time.
+
+**Page flow:** Hero → Problem → Reveal (switch point) → Features → Controls → Download → Footer
+
 ## Key Files
-- `src/lib/scrollPhysics.ts` — Ported physics engine from ScrollEngine.swift
-- `src/components/interactive/` — Interactive scroll demo components
+- `src/lib/scrollPhysics.ts` — Ported physics engine from ScrollEngine.swift (includes custom curve support)
+- `src/components/interactive/PageScrollEngine.tsx` — Global scroll controller wrapping the page
+- `src/components/interactive/ScrollEngineContext.tsx` — React context for engine access
+- `src/components/interactive/CurveEditor.tsx` — Interactive draggable easing curve editor
+- `src/components/interactive/ScrollControls.tsx` — Speed/Smoothness/Easing live controls
+- `src/components/sections/RevealSection.tsx` — "This is Inertia" transition moment
+- `src/components/sections/ControlsSection.tsx` — Wrapper for ScrollControls
 - `src/app/api/release/route.ts` — GitHub Releases API proxy
 - `src/lib/constants.ts` — Feature data, GitHub URLs, easing presets
 

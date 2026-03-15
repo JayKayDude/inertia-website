@@ -83,9 +83,3 @@ export const FEATURES = [
 
 export const EASING_PRESETS = ["Smooth", "Snappy", "Linear", "Gradual"] as const;
 
-export const SCREENSHOT_TABS = [
-  { label: "General", file: "general.png" },
-  { label: "Advanced", file: "advanced.png" },
-  { label: "Profiles", file: "profiles.png" },
-  { label: "Preview", file: "preview.png" },
-] as const;

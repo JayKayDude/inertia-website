@@ -2,7 +2,6 @@
 
 import GradientText from "@/components/ui/GradientText";
 import DownloadButton from "@/components/ui/DownloadButton";
-import ScrollDemo from "@/components/interactive/ScrollDemo";
 import GradientOrb from "@/components/effects/GradientOrb";
 import ScrollReveal from "@/components/effects/ScrollReveal";
 import { GITHUB_URL } from "@/lib/constants";
@@ -51,12 +50,6 @@ export default function HeroSection() {
               <Github className="h-5 w-5" aria-hidden="true" />
               View on GitHub
             </a>
-          </div>
-        </ScrollReveal>
-
-        <ScrollReveal delay={0.45}>
-          <div className="mt-16">
-            <ScrollDemo />
           </div>
         </ScrollReveal>
       </div>

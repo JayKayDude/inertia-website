@@ -5,31 +5,30 @@
 **Updated:** 2026-03-14
 
 ## Current Phase
-v1 complete — preparing for v2 immersive redesign
+v2 core architecture complete — reveal animation redesign next
 
 ## Current Task
-Commit and push v1 of the website. Then begin v2 redesign where the entire page becomes the scroll demo.
+Implement scroll-driven reveal animation (Apple-style "Inertia" title float-up with purple/orange burst).
 
-## Completed Work (v1)
-- Next.js 15 + Tailwind CSS 4 + Framer Motion 11 scaffolded
-- GitHub repo created: github.com/JayKayDude/inertia-website
-- Physics engine ported from ScrollEngine.swift (scrollPhysics.ts)
-- Scroll acceleration curve, tick rate tracking, swipe detection, all 4 easing presets
-- Interactive scroll demo with Default/Inertia toggle
-- Trackpad detection (high-frequency small integer deltas)
-- All page sections: Hero, Problem, Features, Easing Curves, Screenshots, Download
-- GitHub Releases API route (ISR hourly, exact Inertia.zip match)
-- Dark mode with class strategy + system preference sync
-- Header with glass-morphism, mobile nav, dark mode toggle
-- Framer Motion scroll reveals, prefers-reduced-motion respected
-- Hydration bug fixed (Math.random → deterministic values)
-- Screenshot chrome removed (images already have macOS window chrome)
-- Tailwind v4 dark mode fixed (@custom-variant dark)
+## Completed Work (v2)
+- PageScrollEngine: entire page is transform-based (`overflow: hidden` + `translateY`)
+- Pre-reveal: lerp-based scrolling (smooth interpolation, no momentum)
+- Post-reveal: physics engine with smooth momentum, easing presets
+- Bidirectional threshold: physics activates/deactivates based on scroll position
+- ScrollEngineContext with `getEngine()` accessor pattern (avoids React 19 ref-in-render lint)
+- RevealSection: simple "This is Inertia" text (to be replaced with scroll-driven animation)
+- Interactive controls: Speed slider, Smoothness slider, Easing preset buttons
+- CurveEditor: interactive SVG with draggable points, Fritsch-Carlson monotone cubic
+- PresetCurveDisplay: read-only curve visualization for standard easing presets
+- Custom curve engine support ported from ScrollEngine.swift
+- Dark mode persistence fix (eslint-disable for SSR hydration setState)
+- Deleted: ScreenshotsSection, CurveEditorSection, ScrollDemo, EasingCurveCanvas, ScreenshotCard, debug page, screenshots
 
 ## Next Actions
-1. Update all governance documents (this file, PROJECT-MEMORY, LEARNING-LOG, CLAUDE.md)
-2. Commit and push v1
-3. Begin v2 redesign: immersive scroll demo (page IS the demo)
+1. Implement scroll-driven reveal animation with burst effect
+2. Add `subscribeToScroll` to context for frame-by-frame offset updates
+3. Update reveal threshold for 200vh section
+4. Polish and test
 
 ## Blockers
 None

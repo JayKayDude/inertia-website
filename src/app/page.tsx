@@ -2,24 +2,25 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import HeroSection from "@/components/sections/HeroSection";
 import ProblemSection from "@/components/sections/ProblemSection";
+import RevealSection from "@/components/sections/RevealSection";
 import FeaturesSection from "@/components/sections/FeaturesSection";
-import CurveEditorSection from "@/components/sections/CurveEditorSection";
-import ScreenshotsSection from "@/components/sections/ScreenshotsSection";
+import ControlsSection from "@/components/sections/ControlsSection";
 import DownloadSection from "@/components/sections/DownloadSection";
+import PageScrollEngine from "@/components/interactive/PageScrollEngine";
 
 export default function Home() {
   return (
-    <>
+    <PageScrollEngine>
       <Header />
       <main>
         <HeroSection />
         <ProblemSection />
+        <RevealSection />
         <FeaturesSection />
-        <CurveEditorSection />
-        <ScreenshotsSection />
+        <ControlsSection />
         <DownloadSection />
       </main>
       <Footer />
-    </>
+    </PageScrollEngine>
   );
 }

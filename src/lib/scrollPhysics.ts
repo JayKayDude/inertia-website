@@ -16,7 +16,12 @@ const SWIPE_MIN_TICKS = 2;
 const SWIPE_MAX_INTERVAL = 0.4;
 const SWIPE_MIN_TICK_SPEED = 5.0;
 
-export type EasingPreset = "smooth" | "snappy" | "linear" | "gradual";
+export type EasingPreset = "smooth" | "snappy" | "linear" | "gradual" | "custom-curve";
+
+export interface CurvePoint {
+  x: number;
+  y: number;
+}
 
 export interface ScrollPhysicsConfig {
   baseSpeed: number;       // default 4.0
@@ -25,6 +30,7 @@ export interface ScrollPhysicsConfig {
   easing: EasingPreset;    // default "smooth"
   scrollAccelerationEnabled: boolean; // default true
   scrollDistanceMultiplier: number;   // default 1.0
+  customCurvePoints: CurvePoint[];    // default []
 }
 
 export const DEFAULT_CONFIG: ScrollPhysicsConfig = {
@@ -33,8 +39,90 @@ export const DEFAULT_CONFIG: ScrollPhysicsConfig = {
   momentumDuration: 0.6,
   easing: "smooth",
   scrollAccelerationEnabled: true,
-  scrollDistanceMultiplier: 1.0,
+  scrollDistanceMultiplier: 1.5,
+  customCurvePoints: [],
 };
+
+/**
+ * Fritsch-Carlson monotone cubic interpolation.
+ * Ported from ScrollEngine.swift lines 551-618 and EasingCurveView.swift lines 260-309.
+ */
+export function precomputeCurveTangents(userPoints: CurvePoint[]): {
+  pts: CurvePoint[];
+  dx: number[];
+  tangents: number[];
+} {
+  const pts: CurvePoint[] = [
+    { x: 0, y: 1 },
+    ...userPoints.slice().sort((a, b) => a.x - b.x),
+    { x: 1, y: 0 },
+  ];
+  const n = pts.length;
+
+  if (n === 2) {
+    return { pts, dx: [1.0], tangents: [-1.0, -1.0] };
+  }
+
+  const dx = Array.from({ length: n - 1 }, (_, i) => pts[i + 1].x - pts[i].x);
+  const dy = Array.from({ length: n - 1 }, (_, i) => pts[i + 1].y - pts[i].y);
+  const m = dx.map((d, i) => (d > 0 ? dy[i] / d : 0.0));
+
+  const tangents = new Array(n).fill(0);
+  tangents[0] = m[0];
+  tangents[n - 1] = m[n - 2];
+  for (let i = 1; i < n - 1; i++) {
+    if (m[i - 1] * m[i] <= 0) {
+      tangents[i] = 0;
+    } else {
+      tangents[i] = (m[i - 1] + m[i]) / 2.0;
+    }
+  }
+
+  for (let i = 0; i < n - 1; i++) {
+    if (dx[i] <= 0 || m[i] === 0) continue;
+    const alpha = tangents[i] / m[i];
+    const beta = tangents[i + 1] / m[i];
+    if (alpha < 0) tangents[i] = 0;
+    if (beta < 0) tangents[i + 1] = 0;
+    const mag = alpha * alpha + beta * beta;
+    if (mag > 9) {
+      const tau = 3.0 / Math.sqrt(mag);
+      tangents[i] = tau * alpha * m[i];
+      tangents[i + 1] = tau * beta * m[i];
+    }
+  }
+
+  return { pts, dx, tangents };
+}
+
+export function interpolateCurve(
+  t: number,
+  cache: { pts: CurvePoint[]; dx: number[]; tangents: number[] }
+): number {
+  const { pts, dx, tangents } = cache;
+  const n = pts.length;
+  if (n < 2) return 1.0 - t;
+  if (n === 2) return 1.0 - t;
+
+  const clamped = Math.min(Math.max(t, 0), 1);
+
+  let k = 0;
+  for (let i = 0; i < n - 1; i++) {
+    if (clamped >= pts[i].x && clamped <= pts[i + 1].x) { k = i; break; }
+    if (i === n - 2) k = i;
+  }
+
+  const h = dx[k];
+  if (h <= 0) return pts[k].y;
+
+  const tt = (clamped - pts[k].x) / h;
+  const h00 = (1 + 2 * tt) * (1 - tt) * (1 - tt);
+  const h10 = tt * (1 - tt) * (1 - tt);
+  const h01 = tt * tt * (3 - 2 * tt);
+  const h11 = tt * tt * (tt - 1);
+  const result = h00 * pts[k].y + h10 * h * tangents[k] + h01 * pts[k + 1].y + h11 * h * tangents[k + 1];
+  return Math.min(Math.max(result, 0), 1);
+}
 
 export class ScrollPhysicsEngine {
   private velocity = 0;
@@ -61,6 +149,9 @@ export class ScrollPhysicsEngine {
   private momentumInitialVelocity = 0;
   private totalFrames = 120;
 
+  // Custom curve cache
+  private curveCache: { pts: CurvePoint[]; dx: number[]; tangents: number[] } | null = null;
+
   private config: ScrollPhysicsConfig;
 
   // Callbacks
@@ -75,6 +166,13 @@ export class ScrollPhysicsEngine {
   updateConfig(config: Partial<ScrollPhysicsConfig>) {
     this.config = { ...this.config, ...config };
     this.computeFriction();
+    if (this.config.easing === "custom-curve") {
+      this.curveCache = precomputeCurveTangents(this.config.customCurvePoints);
+    }
+  }
+
+  getConfig(): ScrollPhysicsConfig {
+    return { ...this.config };
   }
 
   // Friction formula from ScrollEngine.swift lines 222-225
@@ -129,6 +227,7 @@ export class ScrollPhysicsEngine {
    * @param deltaY - The wheel event's deltaY (raw browser value)
    * @param deltaMode - 0 = pixels, 1 = lines, 2 = pages
    */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   handleWheel(deltaY: number, deltaMode: number = 0) {
     if (Math.abs(deltaY) < 0.001) return;
 
@@ -273,6 +372,16 @@ export class ScrollPhysicsEngine {
           {
             const f = this.friction + (1.0 - this.friction) * 0.5 * (1.0 - t);
             this.velocity *= Math.pow(f, frictionPower);
+          }
+          break;
+        case "custom-curve":
+          // ScrollEngine.swift lines 450-458
+          if (this.curveCache && this.config.customCurvePoints.length > 0) {
+            const targetV = interpolateCurve(t, this.curveCache) * Math.abs(this.momentumInitialVelocity);
+            const sign = this.momentumInitialVelocity > 0 ? 1.0 : -1.0;
+            this.velocity = sign * targetV;
+          } else {
+            this.velocity *= Math.pow(this.friction, frictionPower);
           }
           break;
       }

@@ -9,7 +9,10 @@ export default function Header() {
   const [dark, setDark] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Sync dark mode state from DOM after hydration (inline script in layout.tsx
+  // may have set .dark class before React hydrates, so we must read it here)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDark(document.documentElement.classList.contains("dark"));
 
     const handleScroll = () => setScrolled(window.scrollY > 50);
