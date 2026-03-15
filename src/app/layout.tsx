@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     description:
       "Physics-based inertial scrolling that makes any mouse feel as smooth as a trackpad. 100% free and open source.",
     type: "website",
-    url: "https://inertia-website.vercel.app",
+    url: "https://inertia.vercel.app",
   },
   twitter: {
     card: "summary_large_image",
