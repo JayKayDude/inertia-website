@@ -70,7 +70,7 @@ export default function RevealSection() {
       const windowHeight = window.innerHeight;
       const scrollDistance = sectionHeight - windowHeight;
 
-      // How far through the 200vh section we've scrolled (0-1)
+      // How far through the 500vh section we've scrolled (0-1)
       const rawProgress = (offset - sectionTop) / scrollDistance;
       const p = Math.max(0, Math.min(1, rawProgress));
 
@@ -214,7 +214,7 @@ export default function RevealSection() {
     <section
       ref={sectionRef}
       className="relative"
-      style={{ height: "200vh", contain: "layout style paint" }}
+      style={{ height: "500vh", contain: "layout style paint" }}
     >
       {/* Sticky viewport (simulated) */}
       <div
