@@ -229,6 +229,8 @@ export default function PageScrollEngine({ children, overlay }: PageScrollEngine
         physicsActiveRef.current = false;
         setIsInertiaActive(false);
         engineRef.current?.stop();
+        // Sync lerp target with current position so scrolling resumes immediately
+        targetOffsetRef.current = scrollOffsetRef.current;
       }
 
       if (isTrackpadRef.current || !physicsActiveRef.current) {
