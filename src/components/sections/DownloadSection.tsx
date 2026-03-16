@@ -31,9 +31,18 @@ export default function DownloadSection() {
         <ScrollReveal delay={0.3}>
           <DownloadButton size="large" className="mb-6" />
 
-          <p className="mb-8 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
             Requires macOS 15.0 (Sequoia) or later
           </p>
+
+          <details className="mx-auto mb-8 max-w-md text-left text-sm text-gray-400 dark:text-gray-500">
+            <summary className="cursor-pointer text-center hover:text-gray-600 dark:hover:text-gray-300">
+              First launch instructions
+            </summary>
+            <p className="mt-2 rounded-lg bg-gray-100 p-3 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+              Inertia is not currently signed or notarized. On first launch, right-click the app and select <strong>Open</strong>, then click <strong>Open</strong> in the dialog. If that doesn&apos;t work, go to <strong>System Settings → Privacy &amp; Security</strong>, scroll down, and click <strong>Open Anyway</strong>. This is only needed once.
+            </p>
+          </details>
 
           {/* Badges */}
           <div className="flex flex-wrap items-center justify-center gap-4">

@@ -51,6 +51,15 @@ export default function HeroSection() {
               View on GitHub
             </a>
           </div>
+
+          <details className="mx-auto mt-4 max-w-md text-left text-sm text-gray-400 dark:text-gray-500">
+            <summary className="cursor-pointer text-center hover:text-gray-600 dark:hover:text-gray-300">
+              First launch instructions
+            </summary>
+            <p className="mt-2 rounded-lg bg-gray-100 p-3 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+              Inertia is not currently signed or notarized. On first launch, right-click the app and select <strong>Open</strong>, then click <strong>Open</strong> in the dialog. If that doesn&apos;t work, go to <strong>System Settings → Privacy &amp; Security</strong>, scroll down, and click <strong>Open Anyway</strong>. This is only needed once.
+            </p>
+          </details>
         </ScrollReveal>
       </div>
     </section>
